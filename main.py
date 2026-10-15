@@ -1,12 +1,6 @@
 import random # For sampling from probability distributions.
 from collections import Counter, defaultdict # For counting n-grams.
-
-import textwrap # For automatically adding linebreaks to long texts.
-from IPython.display import display
 import pandas as pd # For constructing and visualizing tables.
-
-# Custom functions for providing feedback on your solutions.
-from ai_foundations.feedback.course_1 import ngrams
 import requests
 
 from io import StringIO
@@ -25,11 +19,6 @@ def classify(text) -> bool | None:
         return False
 
     return None
-
-print(classify("https://example.com/data.json"))   # url
-print(classify(r"C:\Users\me\notes.txt"))          # file path (if the file exists)
-print(classify("hello world"))                     # unknown
-
 
 
 def space_tokenize(text: str) -> list[str]:
@@ -112,7 +101,7 @@ def get_ngram_counts(dataset: list[str], n: int) -> dict[str, Counter]:
     return dict(ngram_counts)
 
 def build_ngram_model(
-    dataset,
+    dataset: list[str],
     n: int
 ) -> dict[str, dict[str, float]]:
     """Builds an n-gram language model.
@@ -208,9 +197,7 @@ def generate_next_n_tokens(
 
     return " ".join(generated_words)
 
-def download_data(
-    url: str = "https://storage.googleapis.com/dm-educational/assets/ai_foundations/africa_galore.json"
-) -> pd.DataFrame | None:
+def download_data(url: str) -> pd.DataFrame | None:
     """Downloads the Africa Galore dataset from the provided URL.
 
     Args:
@@ -226,3 +213,72 @@ def download_data(
     except requests.exceptions.ConnectionError:
         print("⚠️ The dataset was unable to download, please check your internet connection and try again.\n")
         return None
+
+def sort_data(data):
+    names = data["name"].tolist()
+    category = tuple(set(data["category"].tolist()))
+    category_subset = {x:tuple(y[1] for y in zip(data["category"].tolist(), data["name"].tolist()) if y[0] == x) for x in category}
+    dataset: list[str] = data["description"]  # type: ignore
+    datasubset = {x[0]:x[1] for x in zip(names, dataset)}
+    return {'category':category, 'category_subset':category_subset, 'dataset':dataset, 'datasubset':datasubset}
+
+def get_data(path: str = "https://storage.googleapis.com/dm-educational/assets/ai_foundations/africa_galore.json"):
+    """Reads a dataset from a local file or URL.
+
+    Args:
+        path: The path to the dataset file or the URL to download it from.
+
+    Returns:
+        A pandas DataFrame representing the dataset.
+    """
+
+    try:
+        if classify(path):
+            return download_data(path), path
+        elif classify(path) is None:
+            print("⚠️ The provided path is neither a valid URL nor a local file path. Please provide a valid path or URL.\n")
+        else:
+            try: return pd.read_json(path), path
+            except FileNotFoundError: print("⚠️ The specified file was not found. Please check the file path and try again.\n")
+    except ValueError as e:
+        if str(e).strip().lower() == 'trailing data': 
+            try: pd.read_json(path, lines=True)
+            except ValueError: pass
+        print("Please check that the file or URL content is in the correct JSON format")
+
+def display_data(data: pd.DataFrame, default: bool = True) -> list[str]:
+    temp = sort_data(data)
+    category = temp['category']
+    category_subset = temp['category_subset']
+    dataset = temp['dataset']
+    datasubset = temp['datasubset']
+
+    txt = "default" if default else "provided"
+    while True:
+        print(f"The {txt} dataset contains {len(dataset)} entries in the following categories:")
+        for cat in range(len(category)):
+            print(f"{cat}  - {category[cat]}")
+        while True:
+            prompt = input("Select a category to view the dataset or press enter to continue: ")
+            if not prompt.strip(): return dataset
+            if not prompt.strip().isdecimal(): print("wrong input!!!"); continue
+            try: 
+                cat = category[int(prompt.strip())]
+                temp = category_subset[cat] #type: ignore
+                print(f"DATA UNDER CATEGORY {cat.upper()} ({len(temp)}):")
+                for x in range(len(temp)): print(f"{x} - {temp[x]}")
+                tempA = input("Select one of the above to view it's data or press enter to go to homepage or type 'up' to go back to category selection page: ")
+
+                if tempA.strip() == 'up': break
+                elif not tempA.strip():  return dataset
+                else:
+                    while not tempA.strip().isdecimal():
+                        print("wrong input!!!")
+                        tempA = input("-> ")
+                    try:
+                        nam = temp[int(tempA.strip())]
+                        print(f"DATA FOR {nam}:")
+                        print(datasubset[nam])
+                        input("Press enter to go back to the previous page...")
+                    except KeyError: print("Invalid selection!!!")
+            except KeyError: print("Invalid selection!!!")

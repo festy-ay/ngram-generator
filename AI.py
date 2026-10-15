@@ -7,64 +7,29 @@ When you input a prompt, you can either select a dataset from the provided list 
 
 This model is a simple model and does keep track of your prompt and it's generated text.
     
-    NB: Any dataset you provide should be in the same format as the dataset dtatset, you can view it in: https://storage.googleapis.com/dm-educational/assets/ai_foundations/dataset.json
-        Or to put it straight, it should be a list of dictionaries with the following keys: 'category', 'name', and 'description'.
+    NB: Any dataset you provide should be in the same format as the defalt dataset, you can view it in: https://storage.googleapis.com/dm-educational/assets/ai_foundations/dataset.json
+        Or to put it straight, it should be a list of dictionaries with the following keys: 'category', 'name', and 'description' or else the Ngrams AI might not function as expected.
+        No downloaded data is saved!!!
 """)
 
 dataset = []
-data = download_data()
+data = get_data()
 default = data is not None
-if default:
-    names = data["name"].tolist()
-    category = tuple(set(data["category"].tolist()))
-    category_subset = {x:tuple(y[1] for y in zip(data["category"].tolist(), data["name"].tolist()) if y[0] == x) for x in category}
-    dataset = data["description"]  # type: ignore
-    datasubset = {x[0]:x[1] for x in zip(names, dataset)}
-
+if default: dataset = display_data(data[0])
 
 while True:
-    print("1 - View Dataset") if default else print("1 - Input Dataset from file or enter URL")
-    prompt = input("""2 - Change Dataset
-3 - Input prompt
-4 - Exit
-    """)
+    print("1 - View Dataset") if default else print("1 - Input Dataset from file, enter URL or download default dataset")
+    prompt = input("""2 - Change Dataset\n3 - Input prompt\n4 - Exit\n""")
 
-    if prompt == "4": break
+    if prompt.strip() == "4": break
 
-    elif prompt == "1":
-        if default:
-            hp = True
-            while hp:
-                print(f"The default dataset contains {len(dataset)} entries in the following categories:")
-                for cat in range(len(category)):
-                    print(f"{cat}  - {category[cat]}")
-                cp = True
-                while cp:
-                    prompt = input("Select a category to view the dataset: ")
-                    if not prompt.strip().isdecimal(): print("wrong input!!!"); continue
-                    try: 
-                        cat = category[int(prompt.strip())]
-                        temp = category_subset[cat] #type: ignore
-                        print(f"DATA UNDER CATEGORY {cat.upper()} ({len(temp)}):")
-                        for x in range(len(temp)): print(f"{x} - {temp[x]}")
-                        tempA = input("Select one of the above to view it's data or press enter to go to homepage or type 'up' to go back to category selection page: ")
-                        while not tempA.strip().isdecimal():
-                            print("wrong input!!!")
-                            tempA = input("-> ")
-
-                        if tempA.strip() == 'up': break
-                        elif not tempA.strip(): hp = False; break
-                        else:
-                            try:
-                                nam = temp[int(tempA.strip())]
-                                print(f"DATA FOR {nam}:")
-                                print(datasubset[nam])
-                                input("Press enter to go back to the previous page...")
-                            except KeyError: print("Invalid selection!!!")
-                    except KeyError: print("Invalid selection!!!")
+    elif prompt == "1" or prompt == "2":
+        if default and prompt == "1":
+            dataset = display_data(data[0])
         else:
-            if not dataset:
-                prompt = input
+            if dataset: print(f"Current dataset: {data[1]}")
+            prompt = input("Press enter to download default dataset, enter a file path or enter a URL to download a dataset from the web: ")
+            if not prompt.strip(): data = get_data(); default = data is not None
 
     elif default and prompt == "3":
         prompt = input("""
